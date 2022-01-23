@@ -8,7 +8,7 @@ Dll generator designed to run the shellcode via rundll32. Based on the "charlott
 
 As of now, the dll created with meterpreter code is detected by 5 / 65 vendors. Although VirusTotal suggests Defender detects the payload, on the real machines it does not.
 
-![](dll4shell.png.png)
+![](dll4shell.png)
 
 ### Execution steps
 ```
