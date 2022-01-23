@@ -101,8 +101,20 @@ def dll4shell(enctype):
     template.close
     return e1
 
+banner = """
+
+#############################################
+#  Author: Sergey Egorov
+#  C++ .DLL shellcode launcher
+#
+#  Based on Jinkun Ong's 'charlotte' tool
+#############################################
+"""
+
 def main():
 
+    print(banner)
+    
     parser = argparse.ArgumentParser(description='C++ shellcode launcher')
     parser.add_argument("-e", "--encrypt",
                     dest="enc",

@@ -5,6 +5,7 @@ Dll generator designed to run the shellcode via rundll32. Based on the "charlott
 * Using classic chain VirtualAlloc - CreateThread to execute the code in rundll32 process.
 * Shellcode XOR and Cezar / Shift encryption.
 * Simple python script to do the magic.
+* Random names of functions and params for obfuscation.
 
 As of now, the dll created with meterpreter code is detected by 5 / 65 vendors. Although VirusTotal suggests Defender detects the payload, on the real machines it does not.
 
