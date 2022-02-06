@@ -15,14 +15,12 @@ sudo msfconsole -q -x "use exploit/multi/handler; set payload windows/x64/meterp
 
 Techniques used (`-e` parameter):
 
-|Value           |Obfuscation method, Details    |Code invocation              |
-|----------------|-------------------------------|-----------------------------|
-|xor             |XOR, const char                |VirtualAlloc, CreateThread   |
-|xor1            |XOR, unsigned char             |VirtualAlloc, CreateThread   |
-|xor2            |XOR, antidebugging             |Process Injection (VirtualAllocEx, CreateRemoteThread)|
-|xor3            |XOR, antidebugging             |hHeapAlloc, hCreateThread    |
-|shift           |Cezar, const char              |VirtualAlloc, CreateThread   |
-|shift1          |Cezar, unsigned char           |VirtualAlloc, CreateThread   |
+|Value           |Obfuscation method, Details    |Injection type               |Code invocation              |
+|----------------|-------------------------------|-----------------------------|-----------------------------|
+|xor             |XOR                            |Local | VirtualAlloc, CreateThread)   |
+|xor1            |XOR, sandbox evasion           |Remote | VirtualAllocEx, CreateRemoteThread)|
+|xor2            |XOR, sandbox evasion           |Local  | hHeapAlloc, hCreateThread)    |
+|shift           |Cezar, const char              |Local  | VirtualAlloc, CreateThread   |
 
 Outputs (`-o` parameter):
 

