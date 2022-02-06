@@ -1,6 +1,6 @@
 ### C++ shellcode launcher
 
-A collection of DLL runners using various shellcode injection abd obfuscation techniques. Based on the "charlotte" tool and research mentioned in external references. 
+A collection of DLL wrappers using various shellcode injection and obfuscation techniques. Based on the "charlotte" tool and research mentioned in external references.
 
 ### Execution steps
 ```
@@ -30,7 +30,7 @@ Outputs (`-o` parameter):
 |---------------|-------------------------------|
 |dll            |DLL callable via rundll32|
 |xll            |XLL callable via Add-Ins|
-
+|payload        |save encrypted payload only|
 
 ### External references
 
