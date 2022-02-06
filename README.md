@@ -17,10 +17,11 @@ Techniques used (`-e` parameter):
 
 |Value           |Obfuscation method, Details    |Injection type               |Code invocation              |
 |----------------|-------------------------------|-----------------------------|-----------------------------|
-|xor             |XOR                            |Local | VirtualAlloc, CreateThread)   |
-|xor1            |XOR, sandbox evasion           |Remote | VirtualAllocEx, CreateRemoteThread)|
-|xor2            |XOR, sandbox evasion           |Local  | hHeapAlloc, hCreateThread)    |
-|shift           |Cezar, const char              |Local  | VirtualAlloc, CreateThread   |
+|xor             |XOR                            |Local | VirtualAlloc, CreateThread   |
+|xor1            |XOR, sandbox evasion           |Remote | VirtualAllocEx, CreateRemoteThread|
+|xor2            |XOR, sandbox evasion           |Local  | hHeapAlloc, hCreateThread    |
+|shift           |Cezar                          |Local  | VirtualAlloc, CreateThread   |
+|shift1          |Cezar, sandbox evasion         |Remote  | VirtualAllocEx, CreateRemoteThread   |
 
 Outputs (`-o` parameter):
 
