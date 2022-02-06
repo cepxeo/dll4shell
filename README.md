@@ -1,14 +1,6 @@
 ### C++ shellcode launcher
 
-A collection of shellcode injection techniques to run as dll via rundll32. Based on the "charlotte" tool and research mentioned in external references. 
-
-Current features include:
-
-* Using classic chain VirtualAlloc - CreateThread to execute the code in rundll32 process.
-* Shellcode XOR and Cezar / Shift encryption.
-* Simple python script to do the magic.
-* Random names of functions and params for obfuscation.
-
+A collection of DLL runners using various shellcode injection abd obfuscation techniques. Based on the "charlotte" tool and research mentioned in external references. 
 
 ### Execution steps
 ```
@@ -27,13 +19,15 @@ Techniques used (`-e` parameter):
 |----------------|-------------------------------|-----------------------------|
 |xor             |XOR, const char                |VirtualAlloc, CreateThread   |
 |xor1            |XOR, unsigned char             |VirtualAlloc, CreateThread   |
-|xor2            |XOR, antidebugging             |ProcInj (VirtualAllocEx, CreateRemoteThread)|
+|xor2            |XOR, antidebugging             |Process Injection (VirtualAllocEx, CreateRemoteThread)|
 |xor3            |XOR, antidebugging             |hHeapAlloc, hCreateThread    |
 |shift           |Cezar, const char              |VirtualAlloc, CreateThread   |
 |shift1          |Cezar, unsigned char           |VirtualAlloc, CreateThread   |
 
 Outputs (`-o` parameter):
 
+|Value          |Details                        |
+|---------------|-------------------------------|
 |dll            |DLL callable via rundll32|
 |xll            |XLL callable via Add-Ins|
 
