@@ -25,10 +25,7 @@ def xor(enctype, data):
         o = lambda x: x if isinstance(x, int) else ord(x) # handle data being bytes not string
         output_str += chr(o(current) ^ ord(current_key))
 
-    if "1" in enctype:
-        ciphertext = '{ 0x' + ', 0x'.join(hex(ord(x))[2:] for x in output_str) + ' };'
-    else:
-        ciphertext = '\\x' + '\\x'.join(hex(ord(x))[2:] for x in output_str) + '\";'
+    ciphertext = '\\x' + '\\x'.join(hex(ord(x))[2:] for x in output_str) + '\";'
     return ciphertext, key
 
 def shift(enctype, data):
@@ -38,10 +35,7 @@ def shift(enctype, data):
         o = lambda x: x if isinstance(x, int) else ord(x)
         output_str += chr((o(data[i]) + 24) & 0xFF)
     
-    if "1" in enctype:
-        ciphertext = '{ 0x' + ', 0x'.join(hex(ord(x))[2:] for x in output_str) + ' };'
-    else:
-        ciphertext = '\\x' + '\\x'.join(hex(ord(x))[2:] for x in output_str) + '\";'
+    ciphertext = '\\x' + '\\x'.join(hex(ord(x))[2:] for x in output_str) + '\";'
     return ciphertext
 
 def dll4shell(enctype, output):
@@ -73,10 +67,7 @@ def dll4shell(enctype, output):
 
     data = data.replace('RunME', e1)
 
-    if "1" in enctype:
-        data = data.replace('unsigned char calc_payload[] = { };', 'unsigned char calc_payload[] = ' + ciphertext)
-    else:
-        data = data.replace('const char calc_payload[] = { };', 'const char calc_payload[] = \"' + ciphertext)
+    data = data.replace('const char calc_payload[] = { };', 'const char calc_payload[] = \"' + ciphertext)
     
     data = data.replace('calc_payload', calc_name)
 
